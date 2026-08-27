@@ -1,9 +1,14 @@
 """
-parsers/route.py — Parser for Junos 'show route' output.
+parsers/route.py — Parser for Junos 'show route table inet.0' output.
 
 Each record represents one route entry (one [protocol/preference] line) for a
 prefix, not one next-hop. If a route has multiple equal-cost next-hops (ECMP),
 they're joined into a single next_hop field.
+
+Only inet.0 is in scope for this tool — that's what collect_junos.py requests
+and what route_compare.html diffs. The parser itself is table-agnostic (it
+just reads whatever table headers appear in the raw text), so pointing it at
+output from a different 'show route table <name>' command works too.
 
 Fields per record:
     host, table, prefix, protocol, preference, active,
@@ -11,9 +16,10 @@ Fields per record:
 """
 import re
 
-TITLE        = "Junos Route Table"
-COMMAND      = "show route"
+TITLE        = "Junos Route Table (inet.0)"
+COMMAND      = "show route table inet.0"
 COMMAND_SLUGS = [
+    "show_route_table_inet_0",
     "show_route",
 ]
 

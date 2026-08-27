@@ -1,8 +1,13 @@
 # juniper-route-reporter
 
-Collect `show route` from Juniper (Junos) devices via SSH and render an
-interactive HTML report with filterable, sortable tables per device, routing
-table, and protocol.
+Collect `show route table inet.0` from Juniper (Junos) devices via SSH and
+render an interactive HTML report with filterable, sortable tables per
+device and protocol. Includes a before/after compare tool for diffing two
+snapshots — take one, make a change, take another, and see exactly what
+moved.
+
+Only `inet.0` (the default unicast IPv4 table) is in scope — no mgmt table,
+no inet6, no VRFs/routing-instances.
 
 Same shape as `arista-bgp-reporter`, ported for Junos route tables instead of
 Arista BGP detail.
@@ -21,7 +26,7 @@ Arista BGP detail.
 ### 2. Collect
 
     python3 collect_junos.py
-    # Prompts for credentials, saves output/<host>_show_route_all.txt
+    # Prompts for credentials, saves output/<host>_show_route_table_inet_0.txt
 
 Before touching every device, the collector validates your username/password
 against the **first** device in `devices.txt` with a single connection
@@ -37,6 +42,17 @@ window.
 
 Open the report in any browser.
 
+### 4. Compare two snapshots (optional)
+
+    open route_compare.html
+
+Run steps 2-3 once to get a "before" report, make your change, run steps 2-3
+again for an "after" report, then open `route_compare.html` in a browser and
+pick both report files. It's a standalone static page (no server, no
+script) — it reads the data embedded in the two report HTML files and shows
+you routes added, removed, or changed (next-hop, metric/pref/MED/tag,
+AS path, or which one is active).
+
 ## Report features
 
 - Live search across all fields
@@ -44,14 +60,6 @@ Open the report in any browser.
 - "Active only" toggle (Junos `*` / active-route flag)
 - Sortable columns, CSV export
 - Stats bar: devices, routing tables, total/active routes, BGP/OSPF counts
-
-## Routing-instance note
-
-Default command is `show route all`, which includes every routing-instance on
-the device, not just the default one (`inet.0`). If a device doesn't support
-`all`, re-run with:
-
-    python3 collect_junos.py "show route"
 
 ## Adding parsers
 

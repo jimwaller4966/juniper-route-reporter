@@ -3,9 +3,9 @@
 collect_junos.py — SSH into a list of Juniper (Junos) devices and collect CLI output.
 
 Usage:
-    python3 collect_junos.py                  # runs default command list
-    python3 collect_junos.py "show route"      # run a single command
-    python3 collect_junos.py -c commands.txt   # run commands from a file
+    python3 collect_junos.py                            # runs default command list
+    python3 collect_junos.py "show route table inet.0"   # run a single command
+    python3 collect_junos.py -c commands.txt             # run commands from a file
 
 Device list: devices.txt (one hostname/IP per line, # for comments)
 Output:      output/<hostname>_<sanitized_command>.txt
@@ -18,11 +18,12 @@ Credential validation:
     setups lock an account out after a handful of failures across multiple
     devices in a short window.
 
-Routing-instance note:
-    Default command is 'show route all', which includes routes from every
-    routing-instance on the device (not just the default one). If a device
-    doesn't support it, use:
-        python3 collect_junos.py "show route"
+Scope:
+    Default command is 'show route table inet.0' — only the default unicast
+    IPv4 table. That's the table this tool (and route_compare.html) cares
+    about; mgmt_junos.inet.0, inet6.0, and VRF/routing-instance tables are
+    intentionally left out. To collect a different table, pass it explicitly:
+        python3 collect_junos.py "show route table <name>"
 """
 
 import argparse
@@ -42,7 +43,7 @@ except ImportError:
 OUTPUT_DIR = "output"
 
 DEFAULT_COMMANDS = [
-    "show route all",
+    "show route table inet.0",
 ]
 
 MAX_AUTH_ATTEMPTS = 3
@@ -165,8 +166,9 @@ def main():
     print(f"Devices:  {len(devices)}")
     print(f"Commands: {commands}")
     print(f"Output:   {OUTPUT_DIR}/\n")
-    print("NOTE: Default uses 'show route all'.")
-    print("      If a device errors, re-run with: python3 collect_junos.py 'show route'\n")
+    print("NOTE: Default uses 'show route table inet.0'.")
+    print("      If a device errors, re-run with a different table, e.g.:")
+    print("      python3 collect_junos.py 'show route table <name>'\n")
 
     username = input("Username: ").strip()
 
@@ -216,10 +218,9 @@ def main():
 
     if cmd_errors:
         print(f"\n{'='*40}")
-        print("WARNING: These devices returned errors ('all' may not be supported):")
+        print("WARNING: These devices returned errors:")
         for host, cmd, err in cmd_errors:
             print(f"  {host}: {err[:100]}")
-        print("\nFallback: python3 collect_junos.py 'show route'")
 
     print(f"\nNext step: python3 parse_route.py")
 

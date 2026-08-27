@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Route Compare</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap');
+
+  :root {
+    --bg:        #0a0e14;
+    --bg2:       #0f1520;
+    --bg3:       #141c2e;
+    --border:    #1e2d4a;
+    --accent:    #00d4ff;
+    --accent2:   #7c3aed;
+    --accent3:   #10b981;
+    --warn:      #f59e0b;
+    --danger:    #ef4444;
+    --text:      #e2e8f0;
+    --muted:     #64748b;
+    --added-bg:  rgba(16,185,129,0.08);
+    --added-bd:  #10b981;
+    --removed-bg:rgba(239,68,68,0.08);
+    --removed-bd:#ef4444;
+    --changed-bg:rgba(245,158,11,0.08);
+    --changed-bd:#f59e0b;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    min-height: 100vh;
+  }
+
+  header {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .header-left h1 {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+  }
+
+  .header-left .cmd-badge {
+    display: inline-block;
+    margin-top: 4px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  .pickers {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 28px;
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+
+  .picker-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    min-width: 260px;
+  }
+
+  .picker-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+  }
+
+  .picker-label span {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+
+  .before-dot { background: var(--danger); }
+  .after-dot  { background: var(--accent3); }
+
+  .file-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .file-input-wrap:hover { border-color: var(--accent); }
+  .file-input-wrap.loaded { border-color: var(--accent3); }
+
+  .file-input-wrap input[type=file] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .file-name {
+    color: var(--muted);
+    font-size: 11px;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .file-name.loaded { color: var(--text); }
+
+  .btn-browse {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn-browse:hover { border-color: var(--accent); background: var(--bg3); }
+
+  .btn-compare {
+    background: var(--accent);
+    border: none;
+    color: #000;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 10px 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.15s;
+  }
+  .btn-compare:hover { opacity: 0.85; }
+  .btn-compare:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .summary {
+    display: none;
+    gap: 0;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 28px;
+    flex-wrap: wrap;
+  }
+  .summary.visible { display: flex; }
+
+  .stat {
+    padding: 14px 24px 14px 0;
+    margin-right: 24px;
+    border-right: 1px solid var(--border);
+  }
+  .stat:last-child { border-right: none; }
+
+  .stat-val {
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--accent);
+  }
+  .stat-val.red    { color: var(--danger); }
+  .stat-val.green  { color: var(--accent3); }
+  .stat-val.amber  { color: var(--warn); }
+  .stat-val.purple { color: var(--accent2); }
+
+  .stat-label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 4px;
+  }
+
+  .no-diff {
+    display: none;
+    padding: 48px 28px;
+    text-align: center;
+    color: var(--accent3);
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .no-diff.visible { display: block; }
+
+  .sections {
+    padding: 20px 28px 40px;
+  }
+
+  .section {
+    margin-bottom: 24px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    user-select: none;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+  .section-header:hover { background: var(--bg3); }
+
+  .section-indicator {
+    width: 4px;
+    height: 20px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .ind-removed { background: var(--danger); }
+  .ind-added   { background: var(--accent3); }
+  .ind-changed { background: var(--warn); }
+  .ind-active  { background: var(--accent2); }
+
+  .section-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    flex: 1;
+  }
+
+  .section-count {
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: 3px;
+  }
+
+  .section-chevron {
+    color: var(--muted);
+    font-size: 11px;
+    transition: transform 0.2s;
+  }
+  .section-chevron.open { transform: rotate(180deg); }
+
+  .section-body {
+    display: none;
+    overflow-x: auto;
+  }
+  .section-body.open { display: block; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  thead th {
+    background: var(--bg3);
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 8px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--bg3); }
+
+  td {
+    padding: 7px 10px;
+    white-space: nowrap;
+    vertical-align: middle;
+  }
+
+  td.prefix  { color: var(--accent); font-weight: 500; }
+  td.device  { color: var(--muted); }
+
+  .badge-proto {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .proto-BGP    { background: #2d1b4e; color: #c4b5fd; }
+  .proto-OSPF   { background: #1e3a5f; color: #7dd3fc; }
+  .proto-Direct { background: #1a3a2a; color: #6ee7b7; }
+  .proto-Local  { background: #1a3a2a; color: #6ee7b7; }
+  .proto-Static { background: #2a2a1a; color: #fde68a; }
+  .proto-other  { background: #2a2a1a; color: #fde68a; }
+
+  tr.row-removed { background: var(--removed-bg); }
+  tr.row-removed:hover { background: rgba(239,68,68,0.14); }
+  tr.row-added   { background: var(--added-bg); }
+  tr.row-added:hover   { background: rgba(16,185,129,0.14); }
+  tr.row-changed { background: var(--changed-bg); }
+  tr.row-changed:hover { background: rgba(245,158,11,0.14); }
+
+  .val-old { color: var(--danger); text-decoration: line-through; opacity: 0.8; }
+  .val-new { color: var(--accent3); }
+  .val-arrow { color: var(--muted); margin: 0 4px; }
+  .field-label { color: var(--muted); margin-right: 4px; }
+  .field-row { display: block; }
+
+  .no-change { color: var(--muted); font-size: 11px; font-style: italic; }
+
+  .error-msg {
+    padding: 24px 28px;
+    color: var(--danger);
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>Route Compare</h1>
+    <span class="cmd-badge">before / after diff — inet.0</span>
+  </div>
+  <div style="color:var(--muted);font-size:11px;text-align:right;">
+    Key: device + prefix + protocol
+  </div>
+</header>
+
+<div class="pickers">
+  <div class="picker-group">
+    <div class="picker-label"><span class="before-dot"></span>Before (pre-change)</div>
+    <div class="file-input-wrap" id="before-wrap" onclick="document.getElementById('before-file').click()">
+      <input type="file" id="before-file" accept=".html">
+      <span class="file-name" id="before-name">No file selected…</span>
+      <button class="btn-browse" type="button">Browse</button>
+    </div>
+  </div>
+
+  <div class="picker-group">
+    <div class="picker-label"><span class="after-dot"></span>After (post-change)</div>
+    <div class="file-input-wrap" id="after-wrap" onclick="document.getElementById('after-file').click()">
+      <input type="file" id="after-file" accept=".html">
+      <span class="file-name" id="after-name">No file selected…</span>
+      <button class="btn-browse" type="button">Browse</button>
+    </div>
+  </div>
+
+  <button class="btn-compare" id="btn-compare" disabled onclick="runCompare()">Compare</button>
+</div>
+
+<div class="summary" id="summary">
+  <div class="stat">
+    <div class="stat-val red"   id="s-removed">0</div>
+    <div class="stat-label">Routes Removed</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val green" id="s-added">0</div>
+    <div class="stat-label">Routes Added</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val purple" id="s-active">0</div>
+    <div class="stat-label">Active Flag Changed</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val amber" id="s-nexthop">0</div>
+    <div class="stat-label">Next-Hop Changed</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val amber" id="s-attrs">0</div>
+    <div class="stat-label">Attrs Changed</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val amber" id="s-aspath">0</div>
+    <div class="stat-label">AS Path Changed</div>
+  </div>
+</div>
+
+<div class="no-diff" id="no-diff">✓ No differences found — snapshots are identical.</div>
+
+<div class="sections" id="sections"></div>
+
+<script>
+let beforeData = null, afterData = null;
+
+function extractRaw(text) {
+  const m = text.match(/const RAW\s*=\s*(\[[\s\S]*?\]);/);
+  if (!m) return null;
+  try { return JSON.parse(m[1]); } catch(e) { return null; }
+}
+
+function setupPicker(inputId, wrapId, nameId, slot) {
+  document.getElementById(inputId).addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      const data = extractRaw(ev.target.result);
+      const nameEl = document.getElementById(nameId);
+      const wrapEl = document.getElementById(wrapId);
+      if (!data) {
+        nameEl.textContent = '⚠ Could not read route data from file';
+        nameEl.classList.remove('loaded');
+        wrapEl.classList.remove('loaded');
+        if (slot === 'before') beforeData = null;
+        else afterData = null;
+      } else {
+        nameEl.textContent = file.name + '  (' + data.length + ' routes)';
+        nameEl.classList.add('loaded');
+        wrapEl.classList.add('loaded');
+        if (slot === 'before') beforeData = data;
+        else afterData = data;
+      }
+      document.getElementById('btn-compare').disabled = !(beforeData && afterData);
+    };
+    reader.readAsText(file);
+  });
+}
+
+setupPicker('before-file', 'before-wrap', 'before-name', 'before');
+setupPicker('after-file',  'after-wrap',  'after-name',  'after');
+
+// ── Diff logic ────────────────────────────────────────────────────────────────
+// Key: device + prefix + protocol. If the same protocol appears twice for
+// the same prefix on the same device (shouldn't normally happen for a
+// single RIB), only the first is tracked - Junos doesn't emit duplicates
+// here in practice.
+function makeKey(r) {
+  return [r.host, r.prefix, r.protocol].join('||');
+}
+
+function buildMap(records) {
+  const m = new Map();
+  records.forEach(r => { if (!m.has(makeKey(r))) m.set(makeKey(r), r); });
+  return m;
+}
+
+function changed(a, b) { return (a || '').trim() !== (b || '').trim(); }
+
+function protoBadge(p) {
+  const cls = 'proto-' + (['BGP','OSPF','Direct','Local','Static'].includes(p) ? p : 'other');
+  return `<span class="badge-proto ${cls}">${p}</span>`;
+}
+
+function runCompare() {
+  const beforeMap = buildMap(beforeData);
+  const afterMap  = buildMap(afterData);
+
+  const removed    = [];
+  const added      = [];
+  const activeChg  = [];
+  const nexthopChg = [];
+  const attrsChg   = [];
+  const aspathChg  = [];
+
+  beforeMap.forEach((r, key) => { if (!afterMap.has(key)) removed.push(r); });
+  afterMap.forEach((r, key) => { if (!beforeMap.has(key)) added.push(r); });
+
+  beforeMap.forEach((before, key) => {
+    if (!afterMap.has(key)) return;
+    const after = afterMap.get(key);
+
+    if (changed(before.active, after.active))       activeChg.push({before, after});
+    if (changed(before.next_hop, after.next_hop))    nexthopChg.push({before, after});
+    if (changed(before.as_path, after.as_path))      aspathChg.push({before, after});
+
+    const attrFields = ['metric','local_pref','med','tag','preference'];
+    const attrDiffs = attrFields.filter(f => changed(before[f], after[f]));
+    if (attrDiffs.length) attrsChg.push({before, after, fields: attrDiffs});
+  });
+
+  document.getElementById('s-removed').textContent = removed.length;
+  document.getElementById('s-added').textContent   = added.length;
+  document.getElementById('s-active').textContent  = activeChg.length;
+  document.getElementById('s-nexthop').textContent = nexthopChg.length;
+  document.getElementById('s-attrs').textContent   = attrsChg.length;
+  document.getElementById('s-aspath').textContent  = aspathChg.length;
+
+  document.getElementById('summary').classList.add('visible');
+
+  const total = removed.length + added.length + activeChg.length + nexthopChg.length + attrsChg.length + aspathChg.length;
+  document.getElementById('no-diff').classList.toggle('visible', total === 0);
+
+  const container = document.getElementById('sections');
+  container.innerHTML = '';
+
+  if (removed.length)    container.appendChild(buildSimpleSection('Routes Removed', 'ind-removed', 'row-removed', removed));
+  if (added.length)      container.appendChild(buildSimpleSection('Routes Added',   'ind-added',   'row-added',   added));
+  if (activeChg.length)  container.appendChild(buildChangedSection('Active Flag Changed (routing decision)', 'ind-active',  activeChg,  buildActiveRow));
+  if (nexthopChg.length) container.appendChild(buildChangedSection('Next-Hop Changed',                       'ind-changed', nexthopChg, buildNexthopRow));
+  if (attrsChg.length)   container.appendChild(buildChangedSection('Attributes Changed (metric/pref/MED/tag)','ind-changed', attrsChg,   buildAttrsRow));
+  if (aspathChg.length)  container.appendChild(buildChangedSection('AS Path Changed',                        'ind-changed', aspathChg,  buildAspathRow));
+}
+
+// ── Section builders ──────────────────────────────────────────────────────────
+function makeSection(title, indClass, count, bodyHTML, startOpen) {
+  const sec = document.createElement('div');
+  sec.className = 'section';
+
+  const hdr = document.createElement('div');
+  hdr.className = 'section-header';
+  hdr.innerHTML = `
+    <div class="section-indicator ${indClass}"></div>
+    <div class="section-title">${title}</div>
+    <div class="section-count">${count} route${count !== 1 ? 's' : ''}</div>
+    <div class="section-chevron ${startOpen ? 'open' : ''}">▼</div>
+  `;
+
+  const body = document.createElement('div');
+  body.className = 'section-body' + (startOpen ? ' open' : '');
+  body.innerHTML = bodyHTML;
+
+  hdr.addEventListener('click', () => {
+    body.classList.toggle('open');
+    hdr.querySelector('.section-chevron').classList.toggle('open');
+  });
+
+  sec.appendChild(hdr);
+  sec.appendChild(body);
+  return sec;
+}
+
+function simpleTable(headers, rows) {
+  const ths = headers.map(h => `<th>${h}</th>`).join('');
+  return `<table><thead><tr>${ths}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
+}
+
+function buildSimpleSection(title, indClass, rowClass, records) {
+  const rows = records.map(r => `
+    <tr class="${rowClass}">
+      <td class="device">${r.host}</td>
+      <td class="prefix">${r.prefix}</td>
+      <td>${protoBadge(r.protocol)}</td>
+      <td style="color:var(--muted)">${r.preference}</td>
+      <td>${r.metric}</td>
+      <td>${r.as_path}</td>
+      <td>${r.next_hop}</td>
+    </tr>`);
+  const html = simpleTable(['Device','Prefix','Protocol','Pref','Metric','AS Path','Next Hop'], rows);
+  return makeSection(title, indClass, records.length, html, true);
+}
+
+function buildActiveRow(pair) {
+  const wasActive = pair.before.active === '✓';
+  const isActive  = pair.after.active  === '✓';
+  const desc = wasActive && !isActive
+    ? '<span class="val-old">active</span><span class="val-arrow">→</span><span style="color:var(--muted)">no longer active</span>'
+    : '<span style="color:var(--muted)">not active</span><span class="val-arrow">→</span><span class="val-new">now active</span>';
+  return `<tr class="row-changed">
+    <td class="device">${pair.before.host}</td>
+    <td class="prefix">${pair.before.prefix}</td>
+    <td>${protoBadge(pair.before.protocol)}</td>
+    <td>${desc}</td>
+  </tr>`;
+}
+
+function buildNexthopRow(pair) {
+  return `<tr class="row-changed">
+    <td class="device">${pair.before.host}</td>
+    <td class="prefix">${pair.before.prefix}</td>
+    <td>${protoBadge(pair.before.protocol)}</td>
+    <td>
+      <span class="val-old">${pair.before.next_hop}</span>
+      <span class="val-arrow">→</span>
+      <span class="val-new">${pair.after.next_hop}</span>
+    </td>
+  </tr>`;
+}
+
+function buildAspathRow(pair) {
+  return `<tr class="row-changed">
+    <td class="device">${pair.before.host}</td>
+    <td class="prefix">${pair.before.prefix}</td>
+    <td>${protoBadge(pair.before.protocol)}</td>
+    <td>
+      <span class="val-old">${pair.before.as_path}</span>
+      <span class="val-arrow">→</span>
+      <span class="val-new">${pair.after.as_path}</span>
+    </td>
+  </tr>`;
+}
+
+const FIELD_LABELS = {metric:'Metric', local_pref:'Local Pref', med:'MED', tag:'Tag', preference:'Pref'};
+
+function buildAttrsRow(pair) {
+  const diffs = pair.fields.map(f => `
+    <span class="field-row">
+      <span class="field-label">${FIELD_LABELS[f]}:</span>
+      <span class="val-old">${pair.before[f]}</span>
+      <span class="val-arrow">→</span>
+      <span class="val-new">${pair.after[f]}</span>
+    </span>`).join('');
+  return `<tr class="row-changed">
+    <td class="device">${pair.before.host}</td>
+    <td class="prefix">${pair.before.prefix}</td>
+    <td>${protoBadge(pair.before.protocol)}</td>
+    <td>${diffs}</td>
+  </tr>`;
+}
+
+function buildChangedSection(title, indClass, pairs, rowFn) {
+  const headers = ['Device','Prefix','Protocol','Change'];
+  const rows = pairs.map(rowFn);
+  const html = simpleTable(headers, rows);
+  return makeSection(title, indClass, pairs.length, html, true);
+}
+</script>
+</body>
+</html>
