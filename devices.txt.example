@@ -1,0 +1,5 @@
+# Junos route collector — device list
+# One hostname or IP per line, # for comments
+192.0.2.1
+192.0.2.2
+192.0.2.3
