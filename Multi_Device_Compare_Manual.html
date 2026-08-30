@@ -141,12 +141,23 @@
   .pair-col-label {
     font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted);
     margin-bottom: 6px;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
   }
   .pair-col-label span.dot {
     display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: middle;
   }
   .before-dot { background: var(--danger); }
   .after-dot  { background: var(--accent3); }
+
+  .btn-checkpoint {
+    background: transparent; border: 1px solid var(--border); color: var(--muted);
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: none; letter-spacing: normal;
+    padding: 3px 8px; border-radius: 3px; cursor: pointer; white-space: nowrap;
+  }
+  .btn-checkpoint:hover { border-color: var(--accent); color: var(--text); }
+  .checkpoint-status { font-size: 10px; color: var(--muted); margin-top: 4px; }
+  .checkpoint-status.ok  { color: var(--accent3); }
+  .checkpoint-status.err { color: var(--danger); }
 
   .device-paste {
     width: 100%;
@@ -345,7 +356,10 @@
   <b>after</b> CLI output for that device (<code>show route table inet.0</code> for Junos, <code>show ip bgp detail
   vrf all</code> for Arista). Add as many pairs as you have devices — mix Junos and Arista pairs freely. Click
   <b>Compare</b> once. Results land in separate tabs below, one per device type, each with its own filtering,
-  sorting, and CSV export. Nothing here is sent anywhere — everything runs in this browser tab.
+  sorting, and CSV export. Use <b>Save Checkpoint</b> under either box any time you want to archive what's
+  currently pasted there — it downloads a .txt file stamped with the device name and the date/time, so you
+  can keep a running record while you make changes and checks. Nothing here is sent anywhere — everything
+  runs in this browser tab.
 </div>
 
 <div class="pairs-wrap">
@@ -481,6 +495,25 @@ function downloadCsv(csvText, filename) {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+function downloadTextFile(text, filename) {
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+
+function timestampStamp(d) {
+  return String(d.getFullYear()) + pad2(d.getMonth() + 1) + pad2(d.getDate()) + '_' +
+         pad2(d.getHours()) + pad2(d.getMinutes()) + pad2(d.getSeconds());
 }
 
 function makeSection(title, indClass, count, bodyHTML, startOpen, typeLabel) {
@@ -1086,14 +1119,22 @@ function addPair() {
     </div>
     <div class="pair-textareas">
       <div class="pair-col">
-        <div class="pair-col-label"><span class="dot before-dot"></span>Before</div>
+        <div class="pair-col-label">
+          <span><span class="dot before-dot"></span>Before</span>
+          <button class="btn-checkpoint" type="button" data-side="before" title="Save whatever's in this box right now as a timestamped .txt file">💾 Save Checkpoint</button>
+        </div>
         <textarea class="device-paste before-paste" placeholder="${TYPE_INFO.junos.placeholder}"></textarea>
         <div class="paste-status" data-side="before"></div>
+        <div class="checkpoint-status" data-side="before"></div>
       </div>
       <div class="pair-col">
-        <div class="pair-col-label"><span class="dot after-dot"></span>After</div>
+        <div class="pair-col-label">
+          <span><span class="dot after-dot"></span>After</span>
+          <button class="btn-checkpoint" type="button" data-side="after" title="Save whatever's in this box right now as a timestamped .txt file">💾 Save Checkpoint</button>
+        </div>
         <textarea class="device-paste after-paste" placeholder="${TYPE_INFO.junos.placeholder}"></textarea>
         <div class="paste-status" data-side="after"></div>
+        <div class="checkpoint-status" data-side="after"></div>
       </div>
     </div>
   `;
@@ -1105,8 +1146,33 @@ function addPair() {
   const beforeStatus = wrap.querySelector('.paste-status[data-side="before"]');
   const afterStatus  = wrap.querySelector('.paste-status[data-side="after"]');
   const removeBtn = wrap.querySelector('.btn-remove');
+  const beforeCheckpointBtn = wrap.querySelector('.btn-checkpoint[data-side="before"]');
+  const afterCheckpointBtn  = wrap.querySelector('.btn-checkpoint[data-side="after"]');
+  const beforeCheckpointStatus = wrap.querySelector('.checkpoint-status[data-side="before"]');
+  const afterCheckpointStatus  = wrap.querySelector('.checkpoint-status[data-side="after"]');
 
   function parserFor(type) { return type === 'junos' ? parseRouteText : parseBgpText; }
+
+  function saveCheckpoint(which) {
+    const ta = which === 'before' ? beforeTA : afterTA;
+    const statusEl = which === 'before' ? beforeCheckpointStatus : afterCheckpointStatus;
+    const text = ta.value;
+    if (!text.trim()) {
+      statusEl.textContent = '⚠ nothing to save — paste text first';
+      statusEl.className = 'checkpoint-status err';
+      return;
+    }
+    const rawName = nameInput.value.trim() || ('Device ' + id.replace('pair', ''));
+    const safeName = rawName.replace(/[^a-zA-Z0-9_-]+/g, '_').replace(/^_+|_+$/g, '') || 'device';
+    const now = new Date();
+    const filename = `${safeName}_${typeSel.value}_${which}_${timestampStamp(now)}.txt`;
+    downloadTextFile(text, filename);
+    statusEl.textContent = `✓ checkpoint saved ${now.toLocaleTimeString()} (${filename})`;
+    statusEl.className = 'checkpoint-status ok';
+  }
+
+  beforeCheckpointBtn.addEventListener('click', () => saveCheckpoint('before'));
+  afterCheckpointBtn.addEventListener('click', () => saveCheckpoint('after'));
 
   function syncSide(which) {
     const ta = which === 'before' ? beforeTA : afterTA;
