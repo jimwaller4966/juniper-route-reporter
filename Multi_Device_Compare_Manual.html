@@ -348,17 +348,17 @@
 
 <header>
   <div class="header-left"><h1>Multi-Device Compare — Manual Paste</h1></div>
-  <div style="color:var(--muted);font-size:11px;text-align:right;">Junos + Arista, mixed in one run</div>
+  <div style="color:var(--muted);font-size:11px;text-align:right;">Junos + Arista + Palo Alto, mixed in one run</div>
 </header>
 
 <div class="howto">
   <b>How to use:</b> click <b>+ Add device pair</b>, pick the device type, name it, then paste the <b>before</b> and
   <b>after</b> CLI output for that device (<code>show route table inet.0</code> for Junos, <code>show ip bgp detail
-  vrf all</code> for Arista). Add as many pairs as you have devices — mix Junos and Arista pairs freely. Click
-  <b>Compare</b> once. Results land in separate tabs below, one per device type, each with its own filtering,
-  sorting, and CSV export. Use <b>Save Checkpoint</b> under either box any time you want to archive what's
-  currently pasted there — it downloads a .txt file stamped with the device name and the date/time, so you
-  can keep a running record while you make changes and checks. Nothing here is sent anywhere — everything
+  vrf all</code> for Arista, <code>show routing route</code> for Palo Alto). Add as many pairs as you have devices —
+  mix device types freely. Click <b>Compare</b> once. Results land in separate tabs below, one per device type, each
+  with its own filtering, sorting, and CSV export. Use <b>Save Checkpoint</b> under either box any time you want to
+  archive what's currently pasted there — it downloads a .txt file stamped with the device name and the date/time,
+  so you can keep a running record while you make changes and checks. Nothing here is sent anywhere — everything
   runs in this browser tab.
 </div>
 
@@ -378,6 +378,7 @@
 <div class="tabbar" id="tabbar">
   <button class="tab-btn" id="tabbtn-junos" onclick="switchTab('junos')">Junos <span class="tab-count" id="tabcount-junos"></span></button>
   <button class="tab-btn" id="tabbtn-arista" onclick="switchTab('arista')">Arista <span class="tab-count" id="tabcount-arista"></span></button>
+  <button class="tab-btn" id="tabbtn-palo" onclick="switchTab('palo')">Palo Alto <span class="tab-count" id="tabcount-palo"></span></button>
 </div>
 
 <div class="tab-panel" id="panel-junos" data-type="junos">
@@ -418,6 +419,25 @@
     <span class="f-hint" id="arista-f-hint"></span>
   </div>
   <div class="sections" id="arista-sections"></div>
+</div>
+
+<div class="tab-panel" id="panel-palo" data-type="palo">
+  <div class="summary" id="palo-summary">
+    <div class="stat"><div class="stat-val red"   id="palo-s-removed">0</div><div class="stat-label">Routes Removed</div></div>
+    <div class="stat"><div class="stat-val green" id="palo-s-added">0</div><div class="stat-label">Routes Added</div></div>
+    <div class="stat"><div class="stat-val amber" id="palo-s-nexthop">0</div><div class="stat-label">Next-Hop Changed</div></div>
+    <div class="stat"><div class="stat-val purple" id="palo-s-flags">0</div><div class="stat-label">Flags Changed</div></div>
+    <div class="stat"><div class="stat-val amber" id="palo-s-attrs">0</div><div class="stat-label">Attrs Changed</div></div>
+  </div>
+  <div class="no-diff" id="palo-no-diff">✓ No differences found — Palo Alto snapshots are identical.</div>
+  <div class="filterbar" id="palo-filterbar">
+    <input type="text" class="f-input" id="palo-f-search" placeholder="Search all columns…">
+    <select class="f-select" id="palo-f-device"><option value="">All devices</option></select>
+    <select class="f-select" id="palo-f-vr"><option value="">All virtual routers</option></select>
+    <button class="btn-clear" id="palo-f-clear" type="button">Clear filters</button>
+    <span class="f-hint" id="palo-f-hint"></span>
+  </div>
+  <div class="sections" id="palo-sections"></div>
 </div>
 
 <script>
@@ -1091,11 +1111,227 @@ function runAristaCompare(beforeData, afterData) {
 }
 
 /* ════════════════════════════════════════════════════════════════════════
+   PALO ALTO — parser (ported from a hand-traced sample of
+   'show routing route' output; not a fixed-width table — fields are
+   whitespace-tokenized because metric/interface/age/next-AS are each
+   omitted (not blank-padded) depending on route type)
+   ════════════════════════════════════════════════════════════════════════ */
+const PALO_VR_RE = /^VIRTUAL ROUTER:\s*(.+?)\s*\(id\s*\d+\)\s*$/;
+const PALO_DEST_RE = /^(\S+)\s+(\S+)(?:\s+(.*))?$/;
+const PALO_CIDR_RE = /^\d{1,3}(\.\d{1,3}){3}\/\d{1,2}$/;
+const PALO_PROTO_CODE_RE = /^(C|H|S|R|B|O|Oi|Oo|O1|O2|E|M)$/;
+
+function parsePaloRouteText(host, rawText) {
+  const records = [];
+  const lines = rawText.split(/\r\n|\r|\n/);
+  let vr = 'default';
+
+  for (const raw of lines) {
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+
+    const vrMatch = PALO_VR_RE.exec(trimmed);
+    if (vrMatch) { vr = vrMatch[1].trim(); continue; }
+
+    const m = PALO_DEST_RE.exec(trimmed);
+    if (!m) continue;
+    if (!PALO_CIDR_RE.test(m[1])) continue; // skips header/legend/prompt/"total routes shown" lines
+
+    const destination = m[1];
+    const nexthop = m[2];
+    const rest = m[3] ? m[3].trim().split(/\s+/).filter(Boolean) : [];
+
+    let metric = '—';
+    if (rest.length && /^\d+$/.test(rest[0])) metric = rest.shift();
+
+    let flags = '—';
+    if (rest.length) {
+      const first = rest[0];
+      if (first === 'A' && rest.length > 1 && PALO_PROTO_CODE_RE.test(rest[1])) {
+        flags = first + rest[1];
+        rest.splice(0, 2);
+      } else {
+        flags = first;
+        rest.shift();
+      }
+    }
+
+    let age = '—', iface = '—', nextAs = '—';
+    if (rest.length === 1) {
+      if (/^\d+$/.test(rest[0])) age = rest[0]; else iface = rest[0];
+    } else if (rest.length >= 2) {
+      age = rest[0];
+      nextAs = rest[1];
+      if (rest.length > 2) iface = rest.slice(2).join(' ');
+    }
+
+    records.push({ host, vr, destination, nexthop, metric, flags, age, interface: iface, next_as: nextAs });
+  }
+  return records;
+}
+
+/* ── Palo Alto diff/render ── */
+function paloMakeKey(r) { return [r.host, r.vr, r.destination].join('||'); }
+
+function flagsBadge(f) {
+  const cls = 'proto-' + (f === 'A?B' ? 'BGP' : f === 'AC' ? 'Direct' : f === 'AH' ? 'Local' : f === 'AS' ? 'Static' : 'other');
+  return `<span class="badge-proto ${cls}">${f}</span>`;
+}
+
+const PALO_FIELD_LABELS = { metric: 'Metric', interface: 'Interface', next_as: 'Next-AS' };
+
+function paloBuildSimpleSection(title, indClass, rowClass, records) {
+  const rows = records.map(r => `
+    <tr class="${rowClass}" data-device="${r.host}" data-vr="${r.vr}">
+      <td class="device">${r.host}</td>
+      <td>${r.vr}</td>
+      <td class="prefix">${r.destination}</td>
+      <td>${r.nexthop}</td>
+      <td>${r.metric}</td>
+      <td>${flagsBadge(r.flags)}</td>
+      <td>${r.interface}</td>
+      <td>${r.next_as}</td>
+    </tr>`);
+  const html = simpleTable(['Device','VR','Destination','Nexthop','Metric','Flags','Interface','Next-AS'], rows);
+  return makeSection(title, indClass, records.length, html, true, 'palo');
+}
+
+function paloBuildNexthopRow(pair) {
+  return `<tr class="row-changed" data-device="${pair.before.host}" data-vr="${pair.before.vr}">
+    <td class="device">${pair.before.host}</td>
+    <td>${pair.before.vr}</td>
+    <td class="prefix">${pair.before.destination}</td>
+    <td><span class="val-old">${pair.before.nexthop}</span><span class="val-arrow">→</span><span class="val-new">${pair.after.nexthop}</span></td>
+  </tr>`;
+}
+
+function paloBuildFlagsRow(pair) {
+  return `<tr class="row-changed" data-device="${pair.before.host}" data-vr="${pair.before.vr}">
+    <td class="device">${pair.before.host}</td>
+    <td>${pair.before.vr}</td>
+    <td class="prefix">${pair.before.destination}</td>
+    <td>${flagsBadge(pair.before.flags)}<span class="val-arrow">→</span>${flagsBadge(pair.after.flags)}</td>
+  </tr>`;
+}
+
+function paloBuildAttrsRow(pair) {
+  const diffs = pair.fields.map(f => `
+    <span class="field-row">
+      <span class="field-label">${PALO_FIELD_LABELS[f]}:</span>
+      <span class="val-old">${pair.before[f]}</span><span class="val-arrow">→</span><span class="val-new">${pair.after[f]}</span>
+    </span>`).join('');
+  return `<tr class="row-changed" data-device="${pair.before.host}" data-vr="${pair.before.vr}">
+    <td class="device">${pair.before.host}</td>
+    <td>${pair.before.vr}</td>
+    <td class="prefix">${pair.before.destination}</td>
+    <td>${diffs}</td>
+  </tr>`;
+}
+
+function paloBuildChangedSection(title, indClass, pairs, rowFn, headers) {
+  const rows = pairs.map(rowFn);
+  return makeSection(title, indClass, pairs.length, simpleTable(headers, rows), true, 'palo');
+}
+
+function paloPopulateFilterOptions() {
+  const rows = document.querySelectorAll('#palo-sections tbody tr');
+  const devices = new Set(), vrs = new Set();
+  rows.forEach(r => { if (r.dataset.device) devices.add(r.dataset.device); if (r.dataset.vr) vrs.add(r.dataset.vr); });
+  document.getElementById('palo-f-device').innerHTML = '<option value="">All devices</option>' + Array.from(devices).sort().map(d => `<option value="${d}">${d}</option>`).join('');
+  document.getElementById('palo-f-vr').innerHTML     = '<option value="">All virtual routers</option>' + Array.from(vrs).sort().map(v => `<option value="${v}">${v}</option>`).join('');
+}
+
+function paloApplyFilters() {
+  const search = document.getElementById('palo-f-search').value.trim().toLowerCase();
+  const device = document.getElementById('palo-f-device').value;
+  const vr     = document.getElementById('palo-f-vr').value;
+  let totalRows = 0, totalVisible = 0;
+
+  document.querySelectorAll('#palo-sections .section').forEach(sec => {
+    const table = sec.querySelector('table');
+    if (!table) return;
+    const rows = table.querySelectorAll('tbody tr');
+    let visible = 0;
+    rows.forEach(row => {
+      const show = (!search || row.textContent.toLowerCase().includes(search))
+                && (!device || row.dataset.device === device)
+                && (!vr || row.dataset.vr === vr);
+      row.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    totalRows += rows.length; totalVisible += visible;
+    const countEl = sec.querySelector('.section-count');
+    if (countEl) countEl.textContent = (visible === rows.length) ? `${rows.length} route${rows.length !== 1 ? 's' : ''}` : `${visible} of ${rows.length} shown`;
+  });
+
+  const hint = document.getElementById('palo-f-hint');
+  hint.textContent = (search || device || vr) ? `${totalVisible} of ${totalRows} rows match` : '';
+}
+
+document.getElementById('palo-f-search').addEventListener('input', paloApplyFilters);
+document.getElementById('palo-f-device').addEventListener('change', paloApplyFilters);
+document.getElementById('palo-f-vr').addEventListener('change', paloApplyFilters);
+document.getElementById('palo-f-clear').addEventListener('click', () => {
+  document.getElementById('palo-f-search').value = '';
+  document.getElementById('palo-f-device').value = '';
+  document.getElementById('palo-f-vr').value = '';
+  paloApplyFilters();
+});
+
+function runPaloCompare(beforeData, afterData) {
+  const beforeMap = buildMap(beforeData, paloMakeKey);
+  const afterMap  = buildMap(afterData, paloMakeKey);
+
+  const removed = [], added = [], nexthopChg = [], flagsChg = [], attrsChg = [];
+
+  beforeMap.forEach((r, key) => { if (!afterMap.has(key)) removed.push(r); });
+  afterMap.forEach((r, key) => { if (!beforeMap.has(key)) added.push(r); });
+
+  beforeMap.forEach((before, key) => {
+    if (!afterMap.has(key)) return;
+    const after = afterMap.get(key);
+    if (changed(before.nexthop, after.nexthop)) nexthopChg.push({before, after});
+    if (changed(before.flags, after.flags))     flagsChg.push({before, after});
+    const attrFields = ['metric','interface','next_as'];
+    const attrDiffs = attrFields.filter(f => changed(before[f], after[f]));
+    if (attrDiffs.length) attrsChg.push({before, after, fields: attrDiffs});
+  });
+
+  document.getElementById('palo-s-removed').textContent = removed.length;
+  document.getElementById('palo-s-added').textContent   = added.length;
+  document.getElementById('palo-s-nexthop').textContent = nexthopChg.length;
+  document.getElementById('palo-s-flags').textContent   = flagsChg.length;
+  document.getElementById('palo-s-attrs').textContent   = attrsChg.length;
+  document.getElementById('palo-summary').classList.add('visible');
+
+  const total = removed.length + added.length + nexthopChg.length + flagsChg.length + attrsChg.length;
+  document.getElementById('palo-no-diff').classList.toggle('visible', total === 0);
+
+  const container = document.getElementById('palo-sections');
+  container.innerHTML = '';
+  if (removed.length)   container.appendChild(paloBuildSimpleSection('Routes Removed', 'ind-removed', 'row-removed', removed));
+  if (added.length)     container.appendChild(paloBuildSimpleSection('Routes Added',   'ind-added',   'row-added',   added));
+  if (nexthopChg.length) container.appendChild(paloBuildChangedSection('Next-Hop Changed', 'ind-changed', nexthopChg, paloBuildNexthopRow, ['Device','VR','Destination','Next Hop']));
+  if (flagsChg.length)   container.appendChild(paloBuildChangedSection('Flags Changed (route type)', 'ind-changed', flagsChg, paloBuildFlagsRow, ['Device','VR','Destination','Flags']));
+  if (attrsChg.length)   container.appendChild(paloBuildChangedSection('Attributes Changed (metric/interface/next-AS)', 'ind-changed', attrsChg, paloBuildAttrsRow, ['Device','VR','Destination','Change']));
+
+  document.getElementById('palo-f-search').value = '';
+  document.getElementById('palo-f-device').value = '';
+  document.getElementById('palo-f-vr').value = '';
+  document.getElementById('palo-filterbar').classList.toggle('visible', total > 0);
+  paloPopulateFilterOptions();
+  paloApplyFilters();
+
+  return total;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
    PAIR MANAGEMENT + TABS + ORCHESTRATION
    ════════════════════════════════════════════════════════════════════════ */
 const TYPE_INFO = {
-  junos:  { label: 'Junos (route table)',  placeholder: "Paste 'show route table inet.0' output here…" },
-  arista: { label: 'Arista (BGP)',         placeholder: "Paste 'show ip bgp detail vrf all' output here…" },
+  junos:  { label: 'Junos (route table)',      placeholder: "Paste 'show route table inet.0' output here…" },
+  arista: { label: 'Arista (BGP)',              placeholder: "Paste 'show ip bgp detail vrf all' output here…" },
+  palo:   { label: 'Palo Alto (route table)',   placeholder: "Paste 'show routing route' output here…" },
 };
 
 let pairSeq = 0;
@@ -1113,6 +1349,7 @@ function addPair() {
       <select class="pair-type">
         <option value="junos">Junos (route table)</option>
         <option value="arista">Arista (BGP)</option>
+        <option value="palo">Palo Alto (route table)</option>
       </select>
       <input class="pair-name" type="text" placeholder="Device name">
       <button class="btn-remove" type="button" title="Remove this pair">✕</button>
@@ -1151,7 +1388,11 @@ function addPair() {
   const beforeCheckpointStatus = wrap.querySelector('.checkpoint-status[data-side="before"]');
   const afterCheckpointStatus  = wrap.querySelector('.checkpoint-status[data-side="after"]');
 
-  function parserFor(type) { return type === 'junos' ? parseRouteText : parseBgpText; }
+  function parserFor(type) {
+    if (type === 'junos') return parseRouteText;
+    if (type === 'palo') return parsePaloRouteText;
+    return parseBgpText;
+  }
 
   function saveCheckpoint(which) {
     const ta = which === 'before' ? beforeTA : afterTA;
@@ -1190,7 +1431,7 @@ function addPair() {
     const recs = parserFor(type)(name, text);
     pairsData[id][which + 'Records'] = recs;
     if (recs.length) {
-      statusEl.textContent = `✓ parsed ${recs.length} ${type === 'junos' ? 'route' : 'path'}${recs.length !== 1 ? 's' : ''}`;
+      statusEl.textContent = `✓ parsed ${recs.length} ${type === 'arista' ? 'path' : 'route'}${recs.length !== 1 ? 's' : ''}`;
       statusEl.className = 'paste-status ok';
     } else {
       statusEl.textContent = '⚠ nothing recognized in this text';
@@ -1256,7 +1497,9 @@ function runCompareAll() {
   const results = {}; // type -> total diff count
   let firstShownType = null;
 
-  ['junos', 'arista'].forEach(type => {
+  const RUNNERS = { junos: runJunosCompare, arista: runAristaCompare, palo: runPaloCompare };
+
+  ['junos', 'arista', 'palo'].forEach(type => {
     const before = collectByType(type, 'before');
     const after  = collectByType(type, 'after');
     const tabBtn = document.getElementById('tabbtn-' + type);
@@ -1269,7 +1512,7 @@ function runCompareAll() {
     }
 
     tabBtn.style.display = '';
-    const total = type === 'junos' ? runJunosCompare(before, after) : runAristaCompare(before, after);
+    const total = RUNNERS[type](before, after);
     document.getElementById('tabcount-' + type).textContent = (before.length + after.length) + ' recs';
     results[type] = total;
     if (!firstShownType) firstShownType = type;
