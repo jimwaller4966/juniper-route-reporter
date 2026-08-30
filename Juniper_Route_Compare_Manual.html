@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Route Compare</title>
+<title>Route Compare (Manual Paste)</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap');
 
@@ -66,32 +66,54 @@
     border-radius: 4px;
   }
 
-  .pickers {
-    background: var(--bg2);
-    border-bottom: 1px solid var(--border);
-    padding: 20px 28px;
+  .howto {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin: 20px 28px 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .howto b { color: var(--text); }
+  .howto code {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 6px;
+    color: var(--accent);
+  }
+
+  .columns {
     display: flex;
-    gap: 24px;
+    gap: 20px;
+    padding: 16px 28px;
+    align-items: flex-start;
     flex-wrap: wrap;
-    align-items: flex-end;
   }
 
-  .picker-group {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+  .column {
     flex: 1;
-    min-width: 260px;
+    min-width: 380px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
   }
 
-  .picker-label {
+  .column-title {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 1px;
     color: var(--muted);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
 
-  .picker-label span {
+  .column-title span.dot {
     display: inline-block;
     width: 10px;
     height: 10px;
@@ -99,43 +121,11 @@
     margin-right: 6px;
     vertical-align: middle;
   }
-
   .before-dot { background: var(--danger); }
   .after-dot  { background: var(--accent3); }
 
-  .file-input-wrap {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+  .btn-add {
     background: var(--bg3);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 8px 12px;
-    cursor: pointer;
-    transition: border-color 0.15s;
-  }
-  .file-input-wrap:hover { border-color: var(--accent); }
-  .file-input-wrap.loaded { border-color: var(--accent3); }
-
-  .file-input-wrap input[type=file] {
-    position: absolute;
-    opacity: 0;
-    width: 0;
-    height: 0;
-  }
-
-  .file-name {
-    color: var(--muted);
-    font-size: 11px;
-    flex: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .file-name.loaded { color: var(--text); }
-
-  .btn-browse {
-    background: var(--bg);
     border: 1px solid var(--border);
     color: var(--accent);
     font-family: 'JetBrains Mono', monospace;
@@ -143,9 +133,78 @@
     padding: 4px 10px;
     border-radius: 3px;
     cursor: pointer;
-    white-space: nowrap;
   }
-  .btn-browse:hover { border-color: var(--accent); background: var(--bg3); }
+  .btn-add:hover { border-color: var(--accent); }
+
+  .device-block {
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 10px;
+    margin-bottom: 12px;
+    background: var(--bg);
+  }
+  .device-block:last-child { margin-bottom: 0; }
+
+  .device-block-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    align-items: center;
+  }
+
+  .device-name {
+    flex: 1;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+  .device-name:focus { outline: none; border-color: var(--accent); }
+
+  .btn-remove {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 12px;
+    padding: 5px 9px;
+    border-radius: 4px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .btn-remove:hover { border-color: var(--danger); color: var(--danger); }
+
+  .device-paste {
+    width: 100%;
+    min-height: 120px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 8px 10px;
+    resize: vertical;
+  }
+  .device-paste:focus { outline: none; border-color: var(--accent); }
+  .device-paste::placeholder { color: var(--muted); }
+
+  .paste-status {
+    margin-top: 6px;
+    font-size: 10px;
+    color: var(--muted);
+  }
+  .paste-status.ok { color: var(--accent3); }
+  .paste-status.err { color: var(--danger); }
+
+  .actions {
+    padding: 0 28px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
 
   .btn-compare {
     background: var(--accent);
@@ -162,6 +221,8 @@
   }
   .btn-compare:hover { opacity: 0.85; }
   .btn-compare:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .actions .hint { color: var(--muted); font-size: 11px; }
 
   .summary {
     display: none;
@@ -395,34 +456,42 @@
 
 <header>
   <div class="header-left">
-    <h1>Route Compare</h1>
-    <span class="cmd-badge">before / after diff — inet.0</span>
+    <h1>Route Compare — Manual Paste</h1>
   </div>
   <div style="color:var(--muted);font-size:11px;text-align:right;">
     Key: device + prefix + protocol
   </div>
 </header>
 
-<div class="pickers">
-  <div class="picker-group">
-    <div class="picker-label"><span class="before-dot"></span>Before (pre-change)</div>
-    <div class="file-input-wrap" id="before-wrap" onclick="document.getElementById('before-file').click()">
-      <input type="file" id="before-file" accept=".html">
-      <span class="file-name" id="before-name">No file selected…</span>
-      <button class="btn-browse" type="button">Browse</button>
+<div class="howto">
+  <b>How to use:</b> on each device, run <code>show route table inet.0</code> yourself and copy the terminal output.
+  Paste the <b>before</b> capture into the left column and the <b>after</b> capture (taken after your change) into the
+  right column — one block per device. Give each block a device name so the results are labeled. Click
+  <b>Compare</b> to see exactly what changed. Nothing here is sent anywhere — parsing and comparison happen entirely
+  in this browser tab.
+</div>
+
+<div class="columns">
+  <div class="column">
+    <div class="column-title">
+      <span><span class="dot before-dot"></span>Before (pre-change)</span>
+      <button class="btn-add" type="button" onclick="addBlock('before')">+ Add device</button>
     </div>
+    <div id="before-blocks"></div>
   </div>
 
-  <div class="picker-group">
-    <div class="picker-label"><span class="after-dot"></span>After (post-change)</div>
-    <div class="file-input-wrap" id="after-wrap" onclick="document.getElementById('after-file').click()">
-      <input type="file" id="after-file" accept=".html">
-      <span class="file-name" id="after-name">No file selected…</span>
-      <button class="btn-browse" type="button">Browse</button>
+  <div class="column">
+    <div class="column-title">
+      <span><span class="dot after-dot"></span>After (post-change)</span>
+      <button class="btn-add" type="button" onclick="addBlock('after')">+ Add device</button>
     </div>
+    <div id="after-blocks"></div>
   </div>
+</div>
 
+<div class="actions">
   <button class="btn-compare" id="btn-compare" disabled onclick="runCompare()">Compare</button>
+  <span class="hint" id="compare-hint">Paste at least one device under Before and After to enable Compare.</span>
 </div>
 
 <div class="summary" id="summary">
@@ -465,53 +534,189 @@
 <div class="sections" id="sections"></div>
 
 <script>
-let beforeData = null, afterData = null;
+// ── Parser (JS port of parsers/route.py — see the Python tool for the source of truth) ──
+const TABLE_RE = /^(\S+):\s+\d+\s+destinations,\s+\d+\s+routes\s+\(\d+\s+active/;
+const ROUTE_RE = /^(\S*?)\s*([+\-]?\*)?\[([A-Za-z0-9_\-]+)\/(\d+)\](?:\s+(.*))?$/;
+const NEXTHOP_TO_RE  = /^>?\s*to\s+(\S+)\s+via\s+(\S+)/;
+const NEXTHOP_VIA_RE = /^>\s*via\s+(\S+)$/;
+const LOCAL_VIA_RE   = /^Local via\s+(\S+)$/;
+const AS_PATH_RE     = /^AS path:\s*(.+?)(?:,\s*validation-state.*)?$/;
 
-function extractRaw(text) {
-  const m = text.match(/const RAW\s*=\s*(\[[\s\S]*?\]);/);
-  if (!m) return null;
-  try { return JSON.parse(m[1]); } catch(e) { return null; }
-}
+const ATTR_PATTERNS = {
+  metric:     /\bmetric\s+(\d+)\b/,
+  local_pref: /\blocalpref\s+(\d+)\b/,
+  med:        /\bMED\s+(\d+)\b/,
+  tag:        /\btag\s+(\S+)\b/,
+};
 
-function setupPicker(inputId, wrapId, nameId, slot) {
-  document.getElementById(inputId).addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(ev) {
-      const data = extractRaw(ev.target.result);
-      const nameEl = document.getElementById(nameId);
-      const wrapEl = document.getElementById(wrapId);
-      if (!data) {
-        nameEl.textContent = '⚠ Could not read route data from file';
-        nameEl.classList.remove('loaded');
-        wrapEl.classList.remove('loaded');
-        if (slot === 'before') beforeData = null;
-        else afterData = null;
-      } else {
-        nameEl.textContent = file.name + '  (' + data.length + ' routes)';
-        nameEl.classList.add('loaded');
-        wrapEl.classList.add('loaded');
-        if (slot === 'before') beforeData = data;
-        else afterData = data;
+function parseRouteText(host, rawText) {
+  const records = [];
+  const lines = rawText.split(/\r\n|\r|\n/);
+
+  let table = "—";
+  let pendingPrefix = null;
+  let currentPrefix = null;
+  let current = null;
+
+  function flush() {
+    if (current !== null) {
+      current.next_hop = current.next_hop.length ? current.next_hop.join("; ") : "—";
+      records.push(current);
+    }
+    current = null;
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    let m = TABLE_RE.exec(line);
+    if (m) {
+      flush();
+      table = m[1];
+      pendingPrefix = null;
+      currentPrefix = null;
+      continue;
+    }
+
+    if (!line.trim()) continue;
+
+    if (line.startsWith("+ = Active Route") || line.startsWith("Limit/Threshold")) continue;
+
+    m = ROUTE_RE.exec(line);
+    if (m) {
+      flush();
+      const prefix = m[1] || pendingPrefix || currentPrefix || "—";
+      pendingPrefix = null;
+      currentPrefix = prefix;
+      const rest = m[5] || "";
+      const age = rest ? rest.split(",")[0].trim() : "—";
+
+      current = {
+        host: host,
+        table: table,
+        prefix: prefix,
+        protocol: m[3],
+        preference: m[4],
+        active: m[2] ? "✓" : "",
+        age: age || "—",
+        metric: "—",
+        local_pref: "—",
+        med: "—",
+        tag: "—",
+        as_path: "—",
+        next_hop: [],
+      };
+      for (const key in ATTR_PATTERNS) {
+        const am = ATTR_PATTERNS[key].exec(rest);
+        if (am) current[key] = am[1];
       }
-      document.getElementById('btn-compare').disabled = !(beforeData && afterData);
-    };
-    reader.readAsText(file);
+      continue;
+    }
+
+    const stripped = line.trim();
+
+    m = AS_PATH_RE.exec(stripped);
+    if (m && current !== null) { current.as_path = m[1].trim(); continue; }
+
+    m = NEXTHOP_TO_RE.exec(stripped);
+    if (m && current !== null) { current.next_hop.push(`${m[1]} via ${m[2]}`); continue; }
+
+    m = NEXTHOP_VIA_RE.exec(stripped);
+    if (m && current !== null) { current.next_hop.push(`via ${m[1]}`); continue; }
+
+    m = LOCAL_VIA_RE.exec(stripped);
+    if (m && current !== null) { current.next_hop.push(`local via ${m[1]}`); continue; }
+
+    if (stripped === "Discard" && current !== null) { current.next_hop.push("Discard"); continue; }
+    if (stripped === "MultiRecv" && current !== null) { current.next_hop.push("MultiRecv"); continue; }
+
+    flush();
+    pendingPrefix = stripped;
+  }
+
+  flush();
+  return records;
+}
+
+// ── Device-block management (paste inputs) ──────────────────────────────────
+let blockSeq = 0;
+const blockData = { before: {}, after: {} };  // id -> {name, records|null}
+
+function addBlock(side, presetName) {
+  const id = 'blk' + (++blockSeq);
+  blockData[side][id] = { name: presetName || '', records: null };
+
+  const wrap = document.createElement('div');
+  wrap.className = 'device-block';
+  wrap.id = id;
+  const n = Object.keys(blockData[side]).length;
+  wrap.innerHTML = `
+    <div class="device-block-row">
+      <input class="device-name" type="text" placeholder="Device name (e.g. router hostname)" value="${presetName || ''}">
+      <button class="btn-remove" type="button" title="Remove this device">✕</button>
+    </div>
+    <textarea class="device-paste" placeholder="Paste 'show route table inet.0' output here…"></textarea>
+    <div class="paste-status" id="${id}-status"></div>
+  `;
+
+  const nameInput = wrap.querySelector('.device-name');
+  const textArea  = wrap.querySelector('.device-paste');
+  const removeBtn = wrap.querySelector('.btn-remove');
+
+  function sync() {
+    const name = nameInput.value.trim() || ('Device ' + n);
+    const text = textArea.value;
+    const statusEl = document.getElementById(id + '-status');
+    blockData[side][id].name = name;
+    if (!text.trim()) {
+      blockData[side][id].records = null;
+      statusEl.textContent = '';
+      statusEl.className = 'paste-status';
+    } else {
+      const recs = parseRouteText(name, text);
+      blockData[side][id].records = recs;
+      if (recs.length) {
+        statusEl.textContent = `✓ parsed ${recs.length} route${recs.length !== 1 ? 's' : ''}`;
+        statusEl.className = 'paste-status ok';
+      } else {
+        statusEl.textContent = '⚠ no route entries recognized in this text';
+        statusEl.className = 'paste-status err';
+      }
+    }
+    updateCompareState();
+  }
+
+  nameInput.addEventListener('input', sync);
+  textArea.addEventListener('input', sync);
+  removeBtn.addEventListener('click', () => {
+    delete blockData[side][id];
+    wrap.remove();
+    updateCompareState();
   });
+
+  document.getElementById(side + '-blocks').appendChild(wrap);
 }
 
-setupPicker('before-file', 'before-wrap', 'before-name', 'before');
-setupPicker('after-file',  'after-wrap',  'after-name',  'after');
-
-// ── Diff logic ────────────────────────────────────────────────────────────────
-// Key: device + prefix + protocol. If the same protocol appears twice for
-// the same prefix on the same device (shouldn't normally happen for a
-// single RIB), only the first is tracked - Junos doesn't emit duplicates
-// here in practice.
-function makeKey(r) {
-  return [r.host, r.prefix, r.protocol].join('||');
+function sideHasData(side) {
+  return Object.values(blockData[side]).some(b => b.records && b.records.length);
 }
+
+function updateCompareState() {
+  const ready = sideHasData('before') && sideHasData('after');
+  document.getElementById('btn-compare').disabled = !ready;
+  document.getElementById('compare-hint').textContent = ready
+    ? 'Ready — click Compare to diff these snapshots.'
+    : 'Paste at least one device under Before and After to enable Compare.';
+}
+
+function collectSide(side) {
+  let all = [];
+  Object.values(blockData[side]).forEach(b => { if (b.records) all = all.concat(b.records); });
+  return all;
+}
+
+// ── Diff logic (same shape/keying as route_compare.html) ────────────────────
+function makeKey(r) { return [r.host, r.prefix, r.protocol].join('||'); }
 
 function buildMap(records) {
   const m = new Map();
@@ -527,6 +732,9 @@ function protoBadge(p) {
 }
 
 function runCompare() {
+  const beforeData = collectSide('before');
+  const afterData  = collectSide('after');
+
   const beforeMap = buildMap(beforeData);
   const afterMap  = buildMap(afterData);
 
@@ -680,7 +888,7 @@ document.getElementById('f-clear').addEventListener('click', () => {
   applyFilters();
 });
 
-// ── Section builders ──────────────────────────────────────────────────────────
+// ── Section builders (unchanged from route_compare.html) ────────────────────
 function makeSection(title, indClass, count, bodyHTML, startOpen) {
   const sec = document.createElement('div');
   sec.className = 'section';
@@ -795,6 +1003,10 @@ function buildChangedSection(title, indClass, pairs, rowFn) {
   const html = simpleTable(headers, rows);
   return makeSection(title, indClass, pairs.length, html, true);
 }
+
+// ── Init: start each column with one empty block ─────────────────────────────
+addBlock('before');
+addBlock('after');
 </script>
 </body>
 </html>
